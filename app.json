@@ -13,6 +13,8 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "extra": { "EXPO_PUBLIC_API_URL": "http://192.168.1.154:5081" },
+    "android": { "usesCleartextTraffic": true },
     "ios": {
       "supportsTablet": true
     },
