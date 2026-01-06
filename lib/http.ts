@@ -8,6 +8,15 @@ export const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Tạo instance
+export const instance = axios.create({
+  baseURL: 'https://api.example.com', // Thay bằng URL API thực tế của bạn
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // (tuỳ chọn) gắn token nếu có
 http.interceptors.request.use(async (config) => {
   // const token = await SecureStore.getItemAsync('token');

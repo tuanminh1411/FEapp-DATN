@@ -13,7 +13,7 @@ export default function ChatFab({ onPress }: { onPress: () => void }) {
 
 const styles = StyleSheet.create({
   fab: {
-    position: 'absolute', right: 16, bottom: 90,
+    position: 'absolute', right: 16, bottom: 125,
     width: 56, height: 56, borderRadius: 28,
     backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',

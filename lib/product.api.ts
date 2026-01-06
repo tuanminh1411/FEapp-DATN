@@ -4,21 +4,32 @@ import { http } from './http';
 // 1. Định nghĩa kiểu dữ liệu dựa trên ảnh JSON bạn gửi
 export interface Product {
   id: string;
-  ten: string;              // "Trà bí đao"
-  maSanPham: string;        // "001"
-  moTa?: string;            // "1111..."
-  hinhAnhUrl?: string;      // Link ảnh Firebase
-  tieuChuanApDung?: string; // "VietGAP"
-  gia?: number;             // Trong ảnh JSON chưa thấy giá, tôi để tạm optional
+  ten: string;              
+  maSanPham: string;        
+  moTa?: string;            
+  hinhAnhUrl?: string;      
+  tieuChuanApDung?: string; 
+  gia?: number;             
+  tenDoanhNghiep?: string; 
+  doanhNghiepId?: string; 
+}
+
+// Định nghĩa response bọc ngoài của API
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: Product[]; // Mảng sản phẩm nằm ở đây
 }
 
 export const ProductApi = {
-  // Lấy danh sách sản phẩm
-  getAll: () => {
-    return http.get<Product[]>('/api/SanPhams');
+  getAll: async () => {
+    // Gọi API
+    const res = await http.get<ApiResponse>('/api/Trangchu/list_all_san_pham');
+    // Quan trọng: Trả về res.data (Axios response body)
+    // Lúc dùng ở index.tsx sẽ cần chọc thêm 1 lớp .data nữa hoặc xử lý tại đây
+    return res; 
   },
-
-  // Lấy chi tiết (Dự đoán endpoint dựa trên chuẩn REST)
+  
   getDetail: (id: string) => {
     return http.get<Product>(`/api/SanPhams/${id}`);
   }

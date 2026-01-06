@@ -1,6 +1,16 @@
 // app/(tabs)/reviews.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Image, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TextInput, 
+  ActivityIndicator, 
+  TouchableOpacity,
+  FlatList,
+  RefreshControl 
+} from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -9,323 +19,329 @@ import Section from '../../components/Section';
 import ProductCard from '../../components/ProductCard';
 import { COLORS, RADIUS } from '../../theme';
 
-// Import API & Types
+// Import API
 import { Product, ProductApi } from '../../lib/product.api';
+import { Review, ReviewApi } from '../../lib/review.api';
 
 export default function ReviewsScreen() {
   const router = useRouter();
+  
+  // State
   const [products, setProducts] = useState<Product[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Lấy dữ liệu sản phẩm thật
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const res = await ProductApi.getAll();
-        setProducts(res.data);
-      } catch (error) {
-        console.log('Lỗi tải sản phẩm Review:', error);
-      } finally {
-        setLoading(false);
+  // Hàm tải dữ liệu
+  const fetchData = async () => {
+    try {
+      // 1. Lấy danh sách sản phẩm
+      const productRes = await ProductApi.getAll();
+      const productList = productRes.data.data || [];
+      setProducts(productList);
+
+      // 2. Lấy đánh giá (Kết nối API thực tế)
+      if (productList.length > 0) {
+        // Chỉ lấy review của 3 sản phẩm đầu tiên để làm feed
+        const topProducts = productList.slice(0, 3); 
+        
+        const reviewPromises = topProducts.map(p => {
+          // Ép kiểu ID sang Number để khớp với API
+          const productId = Number(p.id); 
+          if (isNaN(productId)) return Promise.resolve(null);
+
+          return ReviewApi.getByProductId(productId)
+            .then(res => {
+                // Xử lý tên sản phẩm an toàn
+                const tenSanPham = (p as any).ten || (p as any).name || (p as any).title || "Sản phẩm";
+                
+                // Map thêm tên sản phẩm vào từng review
+                return res.data.data.map((r: any) => ({
+                    ...r, 
+                    sanPhamTen: tenSanPham 
+                }));
+            })
+            .catch(() => []);
+        });
+
+        const results = await Promise.all(reviewPromises);
+        // Lọc bỏ null và gộp mảng
+        const combinedReviews = results.flat().filter(Boolean);
+        setReviews(combinedReviews);
       }
-    };
-    fetchProducts();
+
+    } catch (error) {
+      console.log('Lỗi tải dữ liệu Review:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
+  // Render Item Sản phẩm HOT
+  const renderProductItem = ({ item }: { item: Product }) => (
+    // ĐÃ CHỈNH SỬA: Tăng width lên 260px cho to và thoáng hơn
+    <View style={{ width: 260, marginRight: 12 }}> 
+      <ProductCard 
+        item={item} 
+        onPress={() => router.push(`/product/${item.id}` as any)}
+      />
+    </View>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 128 }}>
-        {/* Header có tiêu đề ở giữa */}
-        <Header />
-        <Text style={styles.titleCenter}>Đánh giá</Text>
+      {/* Header App */}
+      <Header />
+      
+      <ScrollView 
+        contentContainerStyle={{ paddingTop: 20, paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <Text style={styles.titleCenter}>Cộng đồng đánh giá</Text>
 
-        {/* ô tìm kiếm */}
+        {/* Ô tìm kiếm */}
         <View style={styles.searchWrap}>
           <Ionicons name="search" size={18} color={COLORS.subtext} />
           <TextInput
-            placeholder="Tìm kiếm đánh giá"
+            placeholder="Tìm kiếm bài review..."
             placeholderTextColor={COLORS.subtext}
             style={styles.searchInput}
           />
         </View>
 
-        {/* banner */}
+        {/* Banner */}
         <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>QUÉT MÃ{'\n'}NHANH CHÓNG</Text>
-          <View style={styles.bannerIcons}>
-            <MaterialCommunityIcons name="qrcode" size={24} color="#fff" />
-            <MaterialCommunityIcons name="barcode" size={24} color="#fff" />
+          <View style={{flex: 1}}>
+             <Text style={styles.bannerTitle}>QUÉT MÃ QR</Text>
+             <Text style={{color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 4}}>
+               Tra cứu & Đánh giá sản phẩm
+             </Text>
           </View>
+          <MaterialCommunityIcons name="qrcode-scan" size={48} color="#fff" style={{opacity: 0.9}} />
         </View>
 
         {/* Danh mục nổi bật */}
         <Section title="Danh mục nổi bật" rightText="Xem tất cả">
           <View style={styles.categoryRow}>
-            <CategoryCard
-              icon={<Ionicons name="bicycle" size={22} color={COLORS.primary} />}
-              title="Ô tô, xe máy, xe đạp"
-              stat="130 đánh giá"
-            />
-            <CategoryCard
-              icon={<Ionicons name="home-outline" size={22} color={COLORS.primary} />}
-              title="Đồ dùng sinh hoạt"
-              stat="47 đánh giá"
-            />
-            <CategoryCard
-              icon={<Ionicons name="construct-outline" size={22} color={COLORS.primary} />}
-              title="Công nghiệp, Xây dựng"
-              stat="183 đánh giá"
-            />
+            <CategoryCard icon="bicycle" title="Xe cộ" count="130" />
+            <CategoryCard icon="home-outline" title="Gia dụng" count="47" />
+            <CategoryCard icon="construct-outline" title="Công nghiệp" count="183" />
           </View>
         </Section>
 
-        {/* Sản phẩm HOT (Lấy từ API) */}
+        {/* Sản phẩm HOT */}
         <Section title="Sản phẩm HOT" rightText="Xem tất cả">
           {loading ? (
              <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />
           ) : (
-            <ScrollView
+            <FlatList
+              data={products.slice(0, 6)}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 18, gap: 12 }}
-            >
-              {products.slice(0, 6).map((p) => (
-                // Wrapper View để ép size cho ProductCard khi scroll ngang
-                <View key={p.id} style={{ width: 160 }}> 
-                  <ProductCard 
-                    item={p} 
-                    onPress={() => router.push(`/product/${p.id}` as any)}
-                  />
-                </View>
-              ))}
-            </ScrollView>
+              keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
+              renderItem={renderProductItem}
+              contentContainerStyle={{ paddingHorizontal: 18 }} 
+            />
           )}
         </Section>
 
-        {/* Hot Reviewer nói gì? */}
-        <Section title="Hot Reviewer nói gì?">
-          <ReviewCard />
+        {/* Review Feed - Lấy từ API */}
+        <Section title="Review mới nhất">
+          {loading ? (
+             <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : reviews.length === 0 ? (
+             <Text style={styles.emptyText}>Chưa có đánh giá nào gần đây.</Text>
+          ) : (
+            <View style={{ gap: 16, paddingHorizontal: 18 }}>
+              {reviews.map((rev, index) => (
+                <ReviewCard 
+                    key={rev.id || index}
+                    data={rev}
+                />
+              ))}
+            </View>
+          )}
         </Section>
       </ScrollView>
+
+      {/* Floating Button */}
+      <TouchableOpacity style={styles.floatingBtn} activeOpacity={0.8}>
+        <Ionicons name="create" size={24} color="#fff" />
+        <Text style={styles.floatingBtnText}>Viết Review</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
-/* ---------- components cục bộ cho màn ---------- */
+/* ---------- Components cục bộ ---------- */
 
-function CategoryCard({
-  icon,
-  title,
-  stat,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  stat: string;
-}) {
+function CategoryCard({ icon, title, count }: { icon: any; title: string; count: string }) {
   return (
-    <View style={styles.catCard}>
-      <View style={styles.catCircle}>{icon}</View>
-      <Text style={styles.catTitle} numberOfLines={2}>
-        {title}
-      </Text>
-      <Text style={styles.catStat}>{stat}</Text>
-    </View>
+    <TouchableOpacity style={styles.catCard} activeOpacity={0.7}>
+      <View style={styles.catCircle}>
+        <Ionicons name={icon} size={22} color={COLORS.primary} />
+      </View>
+      <Text style={styles.catTitle}>{title}</Text>
+      <Text style={styles.catStat}>{count} bài</Text>
+    </TouchableOpacity>
   );
 }
 
-function ReviewCard() {
+// Review Card Component
+function ReviewCard({ data }: { data: Review }) {
+  const [liked, setLiked] = useState(false);
+
+  const handleLike = async () => {
+    setLiked(!liked);
+    try {
+      await ReviewApi.likeReview(data.id);
+    } catch (e) {
+      console.log('Lỗi like:', e);
+    }
+  };
+
   return (
     <View style={styles.reviewCard}>
-      <Text style={styles.reviewTitle}>Hot Reviewer nói gì?</Text>
-
-      {/* author */}
-      <View style={styles.authorRow}>
-        <View style={styles.avatar} />
+      {/* Header: Avatar + Tên + Sao */}
+      <View style={styles.reviewHeader}>
+        <View style={styles.avatar}>
+           <Text style={{color: '#6B7280', fontWeight: 'bold'}}>
+             {data.nguoiDungTen ? data.nguoiDungTen.charAt(0).toUpperCase() : 'U'}
+           </Text>
+        </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.authorName}>Mỹ Duyên</Text>
-          <Text style={styles.authorDate}>01/11/2022</Text>
+          <View style={styles.headerTop}>
+             <Text style={styles.authorName}>{data.nguoiDungTen || 'Người dùng ẩn danh'}</Text>
+             <Text style={styles.authorDate}>
+               {data.ngayTao ? new Date(data.ngayTao).toLocaleDateString('vi-VN') : 'Vừa xong'}
+             </Text>
+          </View>
+          <View style={{flexDirection: 'row', marginTop: 4}}>
+            {[...Array(5)].map((_, i) => (
+                <Ionicons key={i} name="star" size={12} color={i < data.soSao ? "#F59E0B" : "#E5E7EB"} />
+            ))}
+          </View>
         </View>
       </View>
 
-      {/* content */}
+      {/* Nội dung Review */}
       <Text style={styles.reviewText} numberOfLines={3}>
-        dầu gội tui sử dụng giảm hẳn tình trạng bị rụng tóc nha , tui để ý là tui sử dụng em này là tóc
-        rụng rất ít khi gội đầu luôn á. Tóc cũng có vẻ suôn mượt hơn ấy. Mùi thì th…{' '}
-        <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Xem thêm</Text>
+        {data.noiDung}
       </Text>
 
-      {/* ảnh review (placeholder) */}
-      <View style={styles.reviewImage}>
-        <Text style={{ color: '#9CA3AF' }}>Ảnh sản phẩm</Text>
-        <View style={styles.badgeRate}>
-          <Ionicons name="create-outline" size={16} color="#fff" />
-          <Text style={{ color: '#fff', marginLeft: 4, fontWeight: '700' }}>Đánh giá</Text>
-        </View>
-      </View>
+      {/* Sản phẩm liên quan */}
+      {data.sanPhamTen && (
+        <TouchableOpacity style={styles.productStrip} activeOpacity={0.7}>
+          <View style={styles.productThumb}>
+              <Ionicons name="cube-outline" size={20} color={COLORS.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.productName} numberOfLines={1}>{data.sanPhamTen}</Text>
+            <Text style={styles.productBrand}>Sản phẩm đã mua</Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
-      {/* strip info sản phẩm */}
-      <View style={styles.productStrip}>
-        <View style={styles.productThumb} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.productName} numberOfLines={1}>
-            Dầu Gội Dove Phục Hồi Hư Tổn Chiết …
-          </Text>
-          <Text style={styles.productBrand} numberOfLines={1}>
-            ユニリーバ・ジャパン（株）
-          </Text>
-        </View>
+      {/* Nút Like/Comment */}
+      <View style={styles.cardFooter}>
+         <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
+            <Ionicons name={liked ? "heart" : "heart-outline"} size={20} color={liked ? "red" : COLORS.text} />
+            <Text style={[styles.actionText, liked && {color: 'red'}]}>Thích</Text>
+         </TouchableOpacity>
+         <TouchableOpacity style={styles.actionBtn}>
+            <Ionicons name="chatbubble-outline" size={19} color={COLORS.text} />
+            <Text style={styles.actionText}>Bình luận</Text>
+         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-/* ---------- styles ---------- */
+/* ---------- Styles ---------- */
 
 const styles = StyleSheet.create({
   titleCenter: {
-    textAlign: 'center',
-    color: COLORS.primary,
-    fontWeight: '700',
-    fontSize: 18,
-    marginBottom: 8,
+    textAlign: 'center', color: COLORS.primary,
+    fontWeight: '700', fontSize: 18,
+    marginBottom: 12, marginTop: 4,
   },
-
   searchWrap: {
-    marginHorizontal: 18,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    height: 44,
-    borderRadius: RADIUS.lg,
+    marginHorizontal: 18, marginBottom: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#fff', paddingHorizontal: 14, height: 46,
+    borderRadius: RADIUS.lg, borderWidth: 1, borderColor: '#E5E7EB',
   },
-  searchInput: { flex: 1, color: COLORS.text },
+  searchInput: { flex: 1, color: COLORS.text, height: '100%' },
 
   banner: {
-    marginHorizontal: 18,
-    height: 140,
-    borderRadius: RADIUS.lg,
+    marginHorizontal: 18, marginBottom: 20,
+    height: 100, borderRadius: RADIUS.lg,
     backgroundColor: COLORS.primary,
-    overflow: 'hidden',
-    padding: 16,
-    marginBottom: 16,
-    justifyContent: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    elevation: 4, shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: {width: 0, height: 4}
   },
-  bannerTitle: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 20,
-    lineHeight: 24,
-  },
-  bannerIcons: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
-    flexDirection: 'row',
-    gap: 10,
-  },
+  bannerTitle: { color: '#fff', fontWeight: '800', fontSize: 20 },
 
-  categoryRow: {
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
+  categoryRow: { paddingHorizontal: 18, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   catCard: {
-    width: '31%',
-    backgroundColor: '#fff',
-    borderRadius: RADIUS.lg,
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    width: '31%', backgroundColor: '#fff', borderRadius: RADIUS.md,
+    alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, gap: 6,
+    borderWidth: 1, borderColor: '#F3F4F6', elevation: 1
   },
-  catCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: COLORS.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  catCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F0F9FF', alignItems: 'center', justifyContent: 'center' },
   catTitle: { textAlign: 'center', color: COLORS.text, fontWeight: '600', fontSize: 12 },
-  catStat: { color: '#9CA3AF', marginTop: 2, fontSize: 10 },
+  catStat: { color: '#9CA3AF', fontSize: 11 },
 
+  /* --- Review Card Styles --- */
   reviewCard: {
-    marginHorizontal: 18,
-    backgroundColor: '#fff',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingBottom: 10,
-    overflow: 'hidden',
+    backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 14,
+    borderWidth: 1, borderColor: '#E5E7EB',
+    
   },
-  reviewTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: COLORS.text,
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    marginBottom: 10,
-  },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    marginBottom: 8,
-  },
+  reviewHeader: { flexDirection: 'row', marginBottom: 10 },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#EEE',
-    marginRight: 10,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#E5E7EB',
+    marginRight: 10, alignItems: 'center', justifyContent: 'center'
   },
-  authorName: { fontWeight: '700', color: COLORS.text },
-  authorDate: { color: '#9CA3AF', marginTop: 2, fontSize: 12 },
-
-  reviewText: { color: COLORS.text, paddingHorizontal: 14, marginBottom: 8 },
-
-  reviewImage: {
-    height: 200,
-    marginHorizontal: 14,
-    borderRadius: RADIUS.lg,
-    backgroundColor: '#F0F6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  badgeRate: {
-    position: 'absolute',
-    right: 12,
-    bottom: 12,
-    backgroundColor: '#F59E0B',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 3,
-  },
-
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  authorName: { fontWeight: '700', color: COLORS.text, fontSize: 14 },
+  authorDate: { color: '#9CA3AF', fontSize: 11 },
+  reviewText: { color: '#4B5563', lineHeight: 20, marginBottom: 12, fontSize: 13 },
+  
   productStrip: {
-    marginTop: 10,
-    marginHorizontal: 12,
-    borderRadius: RADIUS.lg,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    backgroundColor: '#F9FAFB', borderRadius: 8, padding: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12,
+    borderWidth: 1, borderColor: '#F3F4F6',
+    
   },
-  productThumb: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#E5E7EB' },
-  productName: { color: COLORS.text, fontWeight: '700' },
-  productBrand: { color: '#9CA3AF', marginTop: 2 },
+  productThumb: { width: 36, height: 36, borderRadius: 6, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' },
+  productName: { color: COLORS.text, fontWeight: '600', fontSize: 13 },
+  productBrand: { color: '#9CA3AF', fontSize: 11 },
+
+  cardFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10, gap: 20 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  actionText: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
+  emptyText: { textAlign: 'center', color: '#9CA3AF', marginTop: 10, fontStyle: 'italic' },
+
+  floatingBtn: {
+    position: 'absolute', 
+    bottom: 130, 
+    right: 20,
+    backgroundColor: COLORS.primary, flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 12, paddingHorizontal: 20, borderRadius: 30,
+    elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4.65, shadowOffset: { width: 0, height: 4 },
+  },
+  floatingBtnText: { color: '#fff', fontWeight: '700', fontSize: 14, marginLeft: 8 }
 });
