@@ -10,7 +10,7 @@ import RenderHtml from 'react-native-render-html'; // Import thư viện này
 import { COLORS } from '../../theme'; 
 
 // Config API
-const LAN_IP = '192.168.1.160:5081'; 
+const LAN_IP = '172.17.163.80:5081'; 
 const BASE = Platform.OS === 'android' ? `http://${LAN_IP}` : 'http://localhost:5081';
 
 type NewsDetail = {

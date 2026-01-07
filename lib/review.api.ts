@@ -1,29 +1,38 @@
 // lib/review.api.ts
-import { instance } from "./http"; 
+import { instance } from "./http";
 
+// --- THÊM PHẦN NÀY ---
 export interface Review {
-  id: number;
-  noiDung: string;
+  id: string; // Hoặc number tùy DB của bạn
+  sanPhamId: string;
+  nguoiDungId: string;
+  nguoiDungTen?: string; // Tên người dùng (nếu API trả về)
   soSao: number;
+  noiDung: string;
   ngayTao: string;
-  nguoiDungTen: string; // Tên người review
-  sanPhamId: number;
-  sanPhamTen?: string; // Có thể cần map thêm tên sản phẩm nếu API không trả về
+  sanPhamTen?: string; // Tên sản phẩm (nếu API trả về hoặc map thêm ở FE)
+}
+
+export interface ReviewPayload {
+  sanPhamId: string;
+  nguoiDungId: string;
+  soSao: number;
+  noiDung: string;
 }
 
 export const ReviewApi = {
-  // GET: /api/DanhGiaSanPham/list Danh gia/{sanPhamId}
-  getByProductId: (productId: number) => {
-    return instance.get(`/DanhGiaSanPham/list Danh gia/${productId}`);
+  // GET: Lấy danh sách đánh giá
+  getByProductId: (productId: number | string) => {
+    return instance.get(`/api/DanhGiaSanPham/list Danh gia/${productId}`);
   },
 
-  // POST: /api/DanhGiaSanPham/danh gia
-  createReview: (data: { sanPhamId: number; noiDung: string; soSao: number }) => {
-    return instance.post('/DanhGiaSanPham/danh gia', data);
+  // POST: Gửi đánh giá
+  createReview: (payload: ReviewPayload) => {
+    return instance.post('/api/DanhGiaSanPham/danh gia', payload);
   },
 
-  // POST: /api/DanhGiaSanPham/{id}/like
-  likeReview: (reviewId: number) => {
-    return instance.post(`/DanhGiaSanPham/${reviewId}/like`);
+  // POST: Like đánh giá
+  likeReview: (reviewId: string | number) => {
+    return instance.post(`/api/DanhGiaSanPham/${reviewId}/like`);
   }
 };

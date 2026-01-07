@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../../theme';
 
 // ĐỔI IP NÀY THEO MẠNG CỦA BẠN
-const BASE = 'http://192.168.1.160:5081';
+const BASE = 'http://172.17.163.80:5081';
 const LOGIN_URL = `${BASE}/api/Auth/login`;
 
 export default function Login() {

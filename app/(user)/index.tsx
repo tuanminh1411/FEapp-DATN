@@ -24,7 +24,7 @@ import ChatbotSheet from '../../components/ChatbotSheet';
 import { Product, ProductApi } from '../../lib/product.api';
 
 // --- CẤU HÌNH API TIN TỨC ---
-const LAN_IP = '192.168.1.160:5081'; // Thay bằng IP máy bạn
+const LAN_IP = '172.17.163.80:5081'; // Thay bằng IP máy bạn
 const BASE = Platform.OS === 'android' ? `http://${LAN_IP}` : 'http://localhost:5081';
 
 type NewsItem = {

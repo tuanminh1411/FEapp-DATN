@@ -10,7 +10,7 @@ import Header from '../../components/Header';
 import { COLORS, RADIUS } from '../../theme'; 
 
 // Config API
-const LAN_IP = '192.168.1.160:5081'; // Thay bằng IP máy bạn
+const LAN_IP = '172.17.163.80:5081'; // Thay bằng IP máy bạn
 const BASE = Platform.OS === 'android' ? `http://${LAN_IP}` : 'http://localhost:5081';
 
 // Kiểu dữ liệu trả về từ API List

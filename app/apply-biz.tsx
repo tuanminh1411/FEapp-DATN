@@ -9,7 +9,7 @@ import axios from 'axios';
 import { COLORS, RADIUS, SP } from '../theme';
 
 // ⚠️ ĐỔI BASE theo IP/port của bạn
-const BASE = 'http://192.168.1.160:5081';
+const BASE = 'http://172.17.163.80:5081';
 const APPLY_URL = `${BASE}/api/YeuCauDangKyDn`;
 
 export default function ApplyBiz() {

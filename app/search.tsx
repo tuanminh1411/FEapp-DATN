@@ -21,7 +21,7 @@ import { COLORS } from '../theme';
 
 // --- CẤU HÌNH API ---
 // Lưu ý: Đổi IP này thành IP máy tính chạy backend của bạn
-const LAN_IP = '192.168.1.160:5081'; 
+const LAN_IP = '172.17.163.80:5081'; 
 const BASE = Platform.OS === 'android' ? `http://${LAN_IP}` : 'http://localhost:5081';
 
 // --- KIỂU DỮ LIỆU ---

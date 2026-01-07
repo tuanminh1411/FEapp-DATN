@@ -12,7 +12,7 @@ import { COLORS } from '../../theme';
 import { getAuthUser, subscribeAuth, clearAuth, type AuthUser } from '../../lib/auth';
 
 // ====== CẤU HÌNH API ======
-const LAN_IP = '192.168.1.160:5081'; // Đổi theo IP máy bạn
+const LAN_IP = '172.17.163.80:5081'; // Đổi theo IP máy bạn
 const BASE = Platform.OS === 'android' ? `http://${LAN_IP}` : 'http://localhost:5081';
 
 export default function ProfileScreen() {

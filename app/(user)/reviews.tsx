@@ -19,19 +19,26 @@ import Section from '../../components/Section';
 import ProductCard from '../../components/ProductCard';
 import { COLORS, RADIUS } from '../../theme';
 
-// Import API
+// Import Component Modal Viết Review (Mới tạo ở Bước 2)
+import WriteReviewModal from '../../components/WriteReviewModal';
+
+// Import API (Đã sửa ở Bước 1)
 import { Product, ProductApi } from '../../lib/product.api';
 import { Review, ReviewApi } from '../../lib/review.api';
 
 export default function ReviewsScreen() {
   const router = useRouter();
   
-  // State
+  // State Data
   const [products, setProducts] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   
+  // State UI
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // State Modal Viết Review
+  const [modalVisible, setModalVisible] = useState(false);
 
   // Hàm tải dữ liệu
   const fetchData = async () => {
@@ -43,20 +50,19 @@ export default function ReviewsScreen() {
 
       // 2. Lấy đánh giá (Kết nối API thực tế)
       if (productList.length > 0) {
-        // Chỉ lấy review của 3 sản phẩm đầu tiên để làm feed
+        // Chỉ lấy review của 3 sản phẩm đầu tiên để làm feed mẫu
         const topProducts = productList.slice(0, 3); 
         
         const reviewPromises = topProducts.map(p => {
-          // Ép kiểu ID sang Number để khớp với API
-          const productId = Number(p.id); 
-          if (isNaN(productId)) return Promise.resolve(null);
+          // Lấy ID sản phẩm
+          const productId = p.id; 
 
           return ReviewApi.getByProductId(productId)
             .then(res => {
                 // Xử lý tên sản phẩm an toàn
                 const tenSanPham = (p as any).ten || (p as any).name || (p as any).title || "Sản phẩm";
                 
-                // Map thêm tên sản phẩm vào từng review
+                // Map thêm tên sản phẩm vào từng review để hiển thị ở Feed
                 return res.data.data.map((r: any) => ({
                     ...r, 
                     sanPhamTen: tenSanPham 
@@ -66,7 +72,7 @@ export default function ReviewsScreen() {
         });
 
         const results = await Promise.all(reviewPromises);
-        // Lọc bỏ null và gộp mảng
+        // Gộp tất cả đánh giá lại thành 1 mảng (flat)
         const combinedReviews = results.flat().filter(Boolean);
         setReviews(combinedReviews);
       }
@@ -90,7 +96,6 @@ export default function ReviewsScreen() {
 
   // Render Item Sản phẩm HOT
   const renderProductItem = ({ item }: { item: Product }) => (
-    // ĐÃ CHỈNH SỬA: Tăng width lên 260px cho to và thoáng hơn
     <View style={{ width: 260, marginRight: 12 }}> 
       <ProductCard 
         item={item} 
@@ -175,11 +180,27 @@ export default function ReviewsScreen() {
         </Section>
       </ScrollView>
 
-      {/* Floating Button */}
-      <TouchableOpacity style={styles.floatingBtn} activeOpacity={0.8}>
+      {/* Floating Button - Viết Review */}
+      <TouchableOpacity 
+        style={styles.floatingBtn} 
+        activeOpacity={0.8}
+        onPress={() => setModalVisible(true)} // Mở Modal
+      >
         <Ionicons name="create" size={24} color="#fff" />
         <Text style={styles.floatingBtnText}>Viết Review</Text>
       </TouchableOpacity>
+
+      {/* Modal Viết Đánh Giá */}
+      <WriteReviewModal 
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        products={products} // Truyền danh sách sản phẩm để user chọn
+        onSuccess={() => {
+          // Tải lại dữ liệu khi gửi thành công
+          setRefreshing(true);
+          fetchData(); 
+        }}
+      />
     </View>
   );
 }
@@ -269,7 +290,6 @@ function ReviewCard({ data }: { data: Review }) {
 }
 
 /* ---------- Styles ---------- */
-
 const styles = StyleSheet.create({
   titleCenter: {
     textAlign: 'center', color: COLORS.primary,
@@ -283,7 +303,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg, borderWidth: 1, borderColor: '#E5E7EB',
   },
   searchInput: { flex: 1, color: COLORS.text, height: '100%' },
-
   banner: {
     marginHorizontal: 18, marginBottom: 20,
     height: 100, borderRadius: RADIUS.lg,
@@ -293,7 +312,6 @@ const styles = StyleSheet.create({
     elevation: 4, shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: {width: 0, height: 4}
   },
   bannerTitle: { color: '#fff', fontWeight: '800', fontSize: 20 },
-
   categoryRow: { paddingHorizontal: 18, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   catCard: {
     width: '31%', backgroundColor: '#fff', borderRadius: RADIUS.md,
@@ -303,12 +321,9 @@ const styles = StyleSheet.create({
   catCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F0F9FF', alignItems: 'center', justifyContent: 'center' },
   catTitle: { textAlign: 'center', color: COLORS.text, fontWeight: '600', fontSize: 12 },
   catStat: { color: '#9CA3AF', fontSize: 11 },
-
-  /* --- Review Card Styles --- */
   reviewCard: {
     backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 14,
     borderWidth: 1, borderColor: '#E5E7EB',
-    
   },
   reviewHeader: { flexDirection: 'row', marginBottom: 10 },
   avatar: {
@@ -319,22 +334,18 @@ const styles = StyleSheet.create({
   authorName: { fontWeight: '700', color: COLORS.text, fontSize: 14 },
   authorDate: { color: '#9CA3AF', fontSize: 11 },
   reviewText: { color: '#4B5563', lineHeight: 20, marginBottom: 12, fontSize: 13 },
-  
   productStrip: {
     backgroundColor: '#F9FAFB', borderRadius: 8, padding: 8,
     flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12,
     borderWidth: 1, borderColor: '#F3F4F6',
-    
   },
   productThumb: { width: 36, height: 36, borderRadius: 6, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' },
   productName: { color: COLORS.text, fontWeight: '600', fontSize: 13 },
   productBrand: { color: '#9CA3AF', fontSize: 11 },
-
   cardFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10, gap: 20 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionText: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
   emptyText: { textAlign: 'center', color: '#9CA3AF', marginTop: 10, fontStyle: 'italic' },
-
   floatingBtn: {
     position: 'absolute', 
     bottom: 130, 
